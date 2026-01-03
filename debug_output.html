@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+
+<script>
+var bridge = null;
+
+new QWebChannel(qt.webChannelTransport, function(channel) {
+    bridge = channel.objects.bridge;
+
+    bridge.executionFinished.connect(function(id, html_output) {
+        let out = document.getElementById("output-" + id);
+        if (out) out.innerHTML = html_output;
+    });
+});
+
+function runBlock(id) {
+    if (bridge) bridge.runBlock(id);
+}
+</script>
+
+<meta charset="utf-8">
+<script>
+  window.MathJax = {
+    loader: {
+      load: ['[tex]/braket', '[tex]/physics', '[tex]/mhchem', '[tex]/ams']
+    },
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true,
+      packages: {'[+]': ['braket', 'physics', 'mhchem', 'ams']},
+      macros: {
+        abs: ['\\left| #1 \\right|', 1],
+        norm: ['\\left\\lVert #1 \\right\\rVert', 1],
+        vec: ['\\boldsymbol{#1}', 1],
+        Tr: '\\operatorname{Tr}',
+        grad: '\\nabla',
+        div:  '\\nabla\\cdot',
+        curl: '\\nabla\\times'
+      }
+    },
+    svg: {fontCache: 'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<style>
+body {
+  font-family: 'Consolas', monospace;
+  margin: 15px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+img {
+  display: block;
+  margin: 10px auto;
+  max-width: 90%;
+}
+</style>
+</head>
+<body>
+<div id="content">
+        <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: Consolas, monospace;
+        }
+        pre, code {
+            background-color: #111;
+            color: #fff;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        img {
+            border: 1px solid #333;
+            margin: 10px auto;
+            display: block;inlineMath
+        }
+        h1, h2, h3 {
+            color: #E6C300;
+            font-weight: bold;
+        }
+        h4, h5, h6 {
+            color: #E6C300;
+        }
+        blockquote {
+            border-left: 4px solid #E6C300;
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: #222;
+            color: #fff;
+        }
+        blockquote p {
+            margin: 0;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 12px 0;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px 10px;
+        }
+        th {
+            background-color: #333;
+            color: #fff;
+        }
+        td {
+            background-color: #111;
+            color: #fff;
+        }
+        pre {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            font-size: 12pt;
+        }
+        code {
+            font-family: Consolas, monospace;
+            font-size: 12pt;
+        }
+
+        /* ============================================================= */
+        /* ★ 新增：Python Block 雙欄（程式碼 + 輸出）美化樣式           */
+        /* ============================================================= */
+
+        .python-container {
+            border-radius: 6px;
+            overflow: hidden; /* 讓外框圓角生效 */
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        .python-code pre {
+            background-color: #111;
+            color: #fff;
+            padding: 10px;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+        }
+
+        .python-output pre {
+            background-color: #222;
+            color: #ddd;
+            padding: 10px;
+            margin: 0;
+            border: none;
+            border-top: 1px solid #333;
+            font-size: 0.95em; /* 輸出字小一點 */
+        }
+        </style>
+        <p style="margin: 0 0 0.6em 0;">好，我把你那套「反覆換慣性系」的推論，升級成 Minkowski 幾何：不再把「等加速度」當成 (d^2x/dt^2=\text{const})（這是座標依賴的），而是把它改寫成幾何不變量：世界線在 Minkowski 時空中的「曲率」固定。</p>
+<p style="margin: 0 0 0.6em 0;">1) 先把舞台換成 Minkowski 幾何<br>在 1+1 維（只看 (x) 方向）：<br>事件：(X^\mu=(ct,,x))<br>度規（取號誌 (+,-)）：<br>$$<br>ds^2 = c^2 dt^2 - dx^2<br>$$<br>定義固有時（proper time）：<br>$$<br>d\tau = \frac{1}{c}\sqrt{ds^2}=\sqrt{dt^2-\frac{dx^2}{c^2}}<br>$$<br>關鍵： (\tau) 是所有慣性觀察者都同意的（洛倫茲不變），所以用它來「參數化運動」才是幾何版本的做法。</p>
+<p style="margin: 0 0 0.6em 0;">2) 把「速度」換成四速度，把「加速度」換成四加速度<br>四速度：<br>$$<br>U^\mu=\frac{dX^\mu}{d\tau}=\left(c\frac{dt}{d\tau},,\frac{dx}{d\tau}\right)<br>$$<br>它滿足一個不變關係（直接由 (ds^2=c^2d\tau^2) 得到）：<br>$$<br>U^\mu U_\mu = c^2<br>$$<br>四加速度：<br>$$<br>A^\mu=\frac{dU^\mu}{d\tau}<br>$$<br>由 (U^\mu U_\mu=c^2) 對 (\tau) 微分得：<br>$$<br>U^\mu A_\mu = 0<br>$$<br>也就是「四加速度永遠與四速度 Minkowski 正交」。</p>
+<p style="margin: 0 0 0.6em 0;">3) Minkowski 版「等加速度」：固定的是 固有加速度（proper acceleration）<br>你在牛頓版「等加速度」其實在說：某個量的大小固定、可疊加。<br>在 Minkowski 幾何裡，唯一合理的「固定大小」是四加速度的模長（不變量）：<br>$$<br>\alpha \equiv \sqrt{-A^\mu A_\mu}=\text{常數}<br>$$<br>（負號是因為 (A^\mu) 是類空向量；(\alpha) 是實數。）<br>這句話就是：世界線的 Minkowski 曲率固定。這才叫「相對論真正的等加速度」。</p>
+<p style="margin: 0 0 0.6em 0;">4) 直接解出世界線：結果必然是「雙曲線」<br>引入快度（rapidity）(\eta)，用它把洛倫茲 boost 的群參數顯性化。定義：<br>$$<br>\beta\equiv \frac{v}{c}=\tanh\eta,\qquad \gamma=\cosh\eta,\qquad \gamma\beta=\sinh\eta<br>$$<br>那麼四速度可寫成非常乾淨的形式：<br>$$<br>U^\mu = (c\cosh\eta,; c\sinh\eta)<br>$$<br>你要的「等加速度」是 (\alpha) 常數。事實上可以驗證：<br>$$<br>\alpha = c,\left|\frac{d\eta}{d\tau}\right|<br>$$<br>所以「固有加速度常數」等價於：<br>$$<br>\frac{d\eta}{d\tau}=\frac{\alpha}{c}<br>\quad\Rightarrow\quad<br>\eta(\tau)=\frac{\alpha}{c}\tau ;(+\text{常數})<br>$$<br>取初始條件 (\tau=0) 時 (v=0\Rightarrow \eta=0)，得：<br>$$<br>\eta(\tau)=\frac{\alpha}{c}\tau<br>$$<br>把 (U^\mu=dX^\mu/d\tau) 積分：<br>時間分量：<br>$$<br>\frac{d(ct)}{d\tau}=c\cosh!\left(\frac{\alpha\tau}{c}\right)<br>\Rightarrow<br>ct(\tau)=\frac{c^2}{\alpha}\sinh!\left(\frac{\alpha\tau}{c}\right)<br>$$<br>空間分量：<br>$$<br>\frac{dx}{d\tau}=c\sinh!\left(\frac{\alpha\tau}{c}\right)<br>\Rightarrow<br>x(\tau)=\frac{c^2}{\alpha}\left[\cosh!\left(\frac{\alpha\tau}{c}\right)-1\right]<br>$$<br>消去 (\tau)（用 (\cosh^2-\sinh^2=1)）得到世界線方程：<br>$$<br>\left(x+\frac{c^2}{\alpha}\right)^2-(ct)^2=\left(\frac{c^2}{\alpha}\right)^2<br>$$<br>這就是你要的幾何結論：<br>等固有加速度的運動，在 Minkowski 圖上是一條雙曲線。</p>
+5) 把它翻回你熟悉的 (v(t))：你會看到「永遠追不到 (c)」<br>由 
+<span>\(\eta(\tau)=\alpha\tau/c\)</span>
+：<br>速度（用 
+<span>\(\beta=\tanh\eta\)</span>
+）：<br>$$<br>v(\tau)=c\tanh!\left(\frac{\alpha\tau}{c}\right)<br>$$<br>同時 (t(\tau)=\frac{c}{\alpha}\sinh(\alpha\tau/c))，消去 (\tau) 得：<br>$$<br>v(t)=\frac{\alpha t}{\sqrt{1+\left(\frac{\alpha t}{c}\right)^2}}<br>$$<br>所以 (t\to\infty) 時 (v\to c)，但永遠不超過。
+6) 回到你的原始推法：你其實早就在用「快度加法」了<br>你原本反覆換慣性系，核心是「同樣的 boost 一直疊加」。<br>在 Minkowski 幾何裡，「boost 的量」就是快度 (\eta)，它是李群參數，可加：<br>$$<br>\eta_{\text{total}}=\sum \Delta\eta<br>$$<br>而「等固有加速度」就是說：<br>$$<br>\Delta\eta \propto \Delta\tau<br>\quad\Leftrightarrow\quad<br>\frac{d\eta}{d\tau}=\frac{\alpha}{c}<br>$$<br>你的推論升級後變成一句話：<br>把「每一步看到同樣的現象」從 
+<span>\(\Delta v\)</span>
+ 改成 
+<span>\(\Delta\eta\)</span>
+（或等價地用 (\tau) 參數化），等加速度的幾何形狀就從拋物線變成雙曲線。
+<p style="margin: 0 0 0.6em 0;">如果你願意再往前推一小步（仍然是幾何、不是背公式）：我可以把「固定力」分成三種不同的“固定”（固定三力、固定四力、固定固有加速度），並指出它們在 Minkowski 幾何下對應到不同的世界線與不同的可測量量——這裡很多教材其實講得不乾淨。</p></div>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    MathJax.typesetPromise();
+  });
+</script>
+</body>
+</html>
