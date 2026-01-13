@@ -32,16 +32,23 @@ class ElementRenderer:
         return ""
 
     def _render_text(self, elem: TextElement) -> str:
-        text = html.escape(elem.text).replace("\n", "<br>")
-
         kind = (elem.meta or {}).get("text_kind", "block")
 
+        # 行內片段：仍然維持原本策略（不走 Markdown）
         if kind == "inline":
-            # 行內片段：不要產生 <p>，避免把 inline math 切斷
-            return text
+            return html.escape(elem.text)
 
-        # 段落文字：用 <p> 恢復 block 邊界（解決「Enter / 段落不換行」）
-        return f'<p style="margin: 0 0 0.6em 0;">{text}</p>'
+        # ===== 路線 A：Block 文字 → 交給 Markdown =====
+        html_out = markdown2.markdown(
+            elem.text,
+            extras=[
+                "fenced-code-blocks",
+                "tables",
+                "strike",
+            ]
+        )
+
+        return html_out
 
     def _render_latex(self, elem: LatexElement) -> str:
         if elem.meta and elem.meta.get("inline"):

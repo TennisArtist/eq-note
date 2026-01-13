@@ -131,10 +131,11 @@ class HtmlRenderer:
         # 3) 主題處理 (dark/light)
         # （保留原本的背景、字色、code 配色）
         # --------------------
-        bg = "#000" if self.dark_mode else "#fff"
-        fg = "#fff" if self.dark_mode else "#000"
-        code_bg = "#111" if self.dark_mode else "#f5f5f5"
-        border_color = "#333" if self.dark_mode else "#ccc"
+        # 專業深色模式配色建議
+        bg = "#212121" if self.dark_mode else "#E3C65B"  # 背景不再是死黑
+        fg = "#E3E3E3" if self.dark_mode else "#000"  # 字體柔和一點
+        code_bg = "#171717" if self.dark_mode else "#f5f5f5"  # 程式碼區塊稍微亮起來
+        border_color = "#2D2D2D" if self.dark_mode else "#ccc"  # 邊框與背景融合更好
 
         html_style = f"""
         <style>
@@ -154,18 +155,40 @@ class HtmlRenderer:
             margin: 10px auto;
             display: block;inlineMath
         }}
-        h1, h2, h3 {{
-            color: {"#E6C300" if self.dark_mode else "#003399"};
+        
+        h1 {{
+            color: {"#E63F00" if self.dark_mode else "#000"};
             font-weight: bold;
         }}
-        h4, h5, h6 {{
-            color: {"#E6C300" if self.dark_mode else "#003399"};
+        
+        h2 {{
+            color: {"#FFDDAA" if self.dark_mode else "#000"};
+            font-weight: bold;
+        }}
+        
+        h3 {{
+            color: {"#DDFF77" if self.dark_mode else "#000"};
+            font-weight: bold;
+        }}
+        
+        h4 {{
+            color: {"#66FF66" if self.dark_mode else "#000"};
+            font-weight: bold;
+        }}
+        
+        h5 {{
+            color: {"#337357" if self.dark_mode else "#000"};
+            font-weight: bold;
+        }}
+        
+        h6 {{
+            color: {"#FF0000" if self.dark_mode else "#000"};
         }}
         blockquote {{
             border-left: 4px solid {"#E6C300" if self.dark_mode else "#003399"};
             margin: 10px 0;
             padding: 8px 12px;
-            background: {"#222" if self.dark_mode else "#eef3ff"};
+            background: {"#0D0D0D" if self.dark_mode else "#eef3ff"};
             color: {fg};
         }}
         blockquote p {{

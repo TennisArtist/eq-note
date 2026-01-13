@@ -7,8 +7,10 @@ from executor.python_executor import PythonExecutor
 from document.element import PythonElement
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QHBoxLayout, QVBoxLayout,
-    QWidget, QTextEdit, QPushButton, QFileDialog, QMessageBox, QMenu
+    QWidget, QTextEdit, QPushButton, QFileDialog, QMessageBox, QMenu,
+    QSplitter, QShortcut
 )
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QUrl, Qt
 from PyQt5.QtGui import QIcon
@@ -43,15 +45,18 @@ class SmartMathNote(QMainWindow):
         self.resize(1200, 700)
         self.current_file = None
         self.is_dark = True
+
         # === 渲染器（負責 Markdown + LaTeX + Plot → HTML） ===
         self.html_renderer = HtmlRenderer(dark_mode=self.is_dark)
-        self.editor = None  # 由 main.py 設定真正的 Editor
 
-        # === 主 Layout ===
-        main_layout = QHBoxLayout()
-        left_layout = QVBoxLayout()
+        # 注意：真正的 editor 由 main.py 注入
+        # self.editor = None
 
-        # === 左側：文字輸入區 ===
+        # ======================================================
+        # ① 先建立「左側所有元件」（一定要先有）
+        # ======================================================
+
+        # --- 文字輸入區 ---
         self.text_input = QTextEdit()
         self.text_input.setPlaceholderText(
             "輸入 Markdown + LaTeX，例如：\n\n"
@@ -65,8 +70,11 @@ class SmartMathNote(QMainWindow):
             "$$"
         )
         self._apply_textedit_theme()
+
+        # Controller
         self.document_controller = DocumentController(self.html_renderer)
-        # === 按鈕列 ===
+
+        # --- 按鈕 ---
         self.btn_new = QPushButton("🆕")
         self.btn_open = QPushButton("📂")
         self.btn_save = QPushButton("💾")
@@ -105,9 +113,11 @@ class SmartMathNote(QMainWindow):
         button_row.addStretch()
         for btn in all_buttons:
             button_row.addWidget(btn)
-        left_layout.addWidget(self.text_input, 1)
-        left_layout.addLayout(button_row, 0)
-        # === 右側：預覽區 ===
+
+        # ======================================================
+        # ② 右側預覽區（也要先建立）
+        # ======================================================
+
         self.preview = QWebEngineView()
 
         self.channel = QWebChannel(self.preview.page())
@@ -115,13 +125,31 @@ class SmartMathNote(QMainWindow):
         self.channel.registerObject("bridge", self.bridge)
         self.preview.page().setWebChannel(self.channel)
 
-        main_layout.addLayout(left_layout, 1)
-        main_layout.addWidget(self.preview, 1)
-        container = QWidget()
-        container.setLayout(main_layout)
-        self.setCentralWidget(container)
+        # ======================================================
+        # ③ 左側 widget（把 text_input + button_row 組起來）
+        # ======================================================
 
-        # === 功能綁定 ===
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.addWidget(self.text_input, 1)
+        left_layout.addLayout(button_row, 0)
+
+        # ======================================================
+        # ④ Splitter（關鍵）
+        # ======================================================
+
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.addWidget(left_widget)
+        self.splitter.addWidget(self.preview)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
+
+        self.setCentralWidget(self.splitter)
+
+        # ======================================================
+        # ⑤ 功能綁定
+        # ======================================================
+
         self.btn_new.clicked.connect(self.new_note)
         self.btn_open.clicked.connect(self.open_file)
         self.btn_save.clicked.connect(self.save_file)
@@ -149,6 +177,22 @@ class SmartMathNote(QMainWindow):
         self.btn_toggle_theme.setToolTip("切換黑/白主題")
         self.btn_refresh.setToolTip("手動重新整理預覽")
 
+        # ======================================================
+        # ⑥ Reading mode 狀態 + 快捷鍵
+        # ======================================================
+
+        self.reading_mode = False
+        self._editor_width_backup = None
+
+        QShortcut(
+            QKeySequence("Ctrl+\\"),
+            self,
+            activated=self.toggleReadingMode
+        )
+
+        # 在 __init__ 最後（QMessageBox 之後或之前都可）
+        self.update_preview()
+
         # === 啟動訊息 ===
         QMessageBox.information(
             self,
@@ -156,12 +200,46 @@ class SmartMathNote(QMainWindow):
             "本軟體由 Cheng Yung-Yin 開發。\n© 2025 All rights reserved."
         )
 
-        # 可選：啟動時就先渲染一次
-        # self.update_preview()
-
     # ------------------------------------------------------------------
     #  主題 / 外觀
     # ------------------------------------------------------------------
+
+    def toggleReadingMode(self):
+        self.reading_mode = not self.reading_mode
+
+        left = self.splitter.widget(0)
+        right = self.splitter.widget(1)
+
+        if self.reading_mode:
+            self._editor_width_backup = self.splitter.sizes()[0]
+            self._was_maximized = self.isMaximized()  # 記住原本是否最大化
+
+            left.hide()
+            self.splitter.setSizes([0, 1])
+
+            # 可選：進入閱讀模式時自動最大化視窗（很多人愛）
+            # self.showMaximized()
+
+            self.preview.setFocus()
+            self.setWindowTitle(self.windowTitle() + "  [閱讀模式]")
+
+        else:
+            left.show()
+
+            total = self.splitter.width()
+            editor_w = self._editor_width_backup or total // 2
+            preview_w = max(200, total - editor_w)
+
+            self.splitter.setSizes([editor_w, preview_w])
+
+            # 如果原本不是最大化，恢復正常大小（視需求）
+            # if not self._was_maximized:
+            #     self.showNormal()
+
+            self.text_input.setFocus()
+            # 移除 [閱讀模式] 標籤
+            title = self.windowTitle().replace("  [閱讀模式]", "")
+            self.setWindowTitle(title)
 
     def _apply_textedit_theme(self):
         """依照 self.is_dark 套用輸入區樣式。"""
@@ -207,7 +285,9 @@ class SmartMathNote(QMainWindow):
 
     def update_preview(self):
         # 1. 從 Editor 取得文字
-        raw_text = self.editor.get_text()
+        # raw_text = self.editor.get_text()
+        raw_text = self.text_input.toPlainText()
+
         # print("PREVIEW: start")
 
         # 2. 先交給 Parser → DocumentModel
