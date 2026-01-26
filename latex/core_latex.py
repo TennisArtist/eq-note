@@ -1,4 +1,4 @@
-# core_latex.py
+# latex/core_latex.py
 import os
 import re
 import numpy as np

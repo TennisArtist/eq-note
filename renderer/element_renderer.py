@@ -1,5 +1,4 @@
 # renderer/element_renderer.py
-
 import markdown2
 import html  # ★ 新增：為了 escape 輸出內容
 
@@ -11,6 +10,28 @@ from document.element import (
     ImageElement,
     PythonElement
 )
+
+import re
+from latex.constants import MATH_TOKEN_L, MATH_TOKEN_R
+
+
+_math_inline_re = re.compile(r"\$(.+?)\$", re.DOTALL)
+
+
+def protect_math(text: str):
+    math_map = {}
+    idx = 0
+
+    def repl(m):
+        nonlocal idx
+        # key = f"\uFFF0{idx}\uFFF1"
+        key = f"{MATH_TOKEN_L}{idx}{MATH_TOKEN_R}"
+        math_map[key] = m.group(0)
+        idx += 1
+        return key
+
+    text = _math_inline_re.sub(repl, text)
+    return text, math_map
 
 
 class ElementRenderer:
@@ -32,23 +53,41 @@ class ElementRenderer:
         return ""
 
     def _render_text(self, elem: TextElement) -> str:
-        kind = (elem.meta or {}).get("text_kind", "block")
+        """
+        【渲染順序（不可改）】
+        1. 還原 LaTeX token
+        2. 保護數學（避免 Markdown 介入）
+        3. Markdown → HTML
+        4. 還原數學
+        """
 
-        # 行內片段：仍然維持原本策略（不走 Markdown）
-        if kind == "inline":
-            return html.escape(elem.text)
+        text = elem.text
 
-        # ===== 路線 A：Block 文字 → 交給 Markdown =====
-        html_out = markdown2.markdown(
-            elem.text,
+        # 1) 還原 LaTeX token
+        token_map = getattr(self.doc_model, "latex_token_map", {})
+        for token in sorted(token_map.keys(), key=len, reverse=True):
+            text = text.replace(token, token_map[token].raw)
+
+        # 2) ★ 保護數學，避免 Markdown 碰到 _
+        text, math_map = protect_math(text)
+
+        # 3) Markdown（必須啟用 mathjax）
+        html = markdown2.markdown(
+            text,
             extras=[
-                "fenced-code-blocks",
                 "tables",
+                "fenced-code-blocks",
                 "strike",
+                "task_list",
+                "no-intra-emphasis",
             ]
         )
 
-        return html_out
+        # 4) ★ 還原數學
+        for key, math in math_map.items():
+            html = html.replace(key, math)
+
+        return html
 
     def _render_latex(self, elem: LatexElement) -> str:
         if elem.meta and elem.meta.get("inline"):

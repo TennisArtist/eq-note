@@ -111,8 +111,8 @@ class HtmlRenderer:
         doc_model: DocumentModel
         回傳 (html, base_url)
         """
-
         # 1) 把所有 Element 轉成 HTML block
+        self.element_renderer.doc_model = doc_model  # ★ 加這行
         html_blocks = []
         for elem in doc_model.elements:
             block_html = self.element_renderer.render_element(elem)
@@ -122,10 +122,13 @@ class HtmlRenderer:
         html_body = "\n".join(html_blocks)
 
         # -----------------------------
-        # 2.5) 關閉斜體 <em> / <i>
+        # 2.2) 還原 LaTeX token
         # -----------------------------
-        html_body = re.sub(r"</?em>", "", html_body)
-        html_body = re.sub(r"</?i>", "", html_body)
+        token_map = getattr(doc_model, "latex_token_map", {})
+        # ★ 關鍵：依 token 長度由長到短替換
+        for token in sorted(token_map.keys(), key=len, reverse=True):
+            html_body = html_body.replace(token, token_map[token].raw)
+
 
         # --------------------
         # 3) 主題處理 (dark/light)

@@ -12,7 +12,7 @@ from document.element import (
     ImageElement,
     PythonElement,
 )
-
+from latex.latex_tokenizer import LatexTokenizer
 
 class DocumentParser:
 
@@ -87,33 +87,37 @@ class DocumentParser:
         r'<img\s+src=\"(.+?)\"(?:\s+width=\"(\d+)\")?\s*>'
     )
 
-    # Inline LaTeX：
-    # 1) \( ... \)
-    _inline_paren_re = re.compile(r'\\\((.+?)\\\)')
-
-    # 2) $ ... $（避免 $$）
-    _inline_dollar_re = re.compile(
-        r'(?<!\$)\$(.+?)\$(?!\$)'
-    )
 
     # =========================================================
     # 主解析入口
     # =========================================================
     def parse(self, raw_text: str) -> DocumentModel:
+        """
+        【設計原則】
+        - Parser 只負責 block / element 結構
+        - 不處理 inline 語法（已由 tokenizer 保護）
+        - 不得對文字做 regex 修飾
+        """
+
         elements: List[BaseElement] = []
+        # ★ 1) tokenizer
+        tokenizer = LatexTokenizer()
+        raw_text, token_map = tokenizer.protect(raw_text)
 
-        # 1. 以空白行拆段
+        # ★ 2) block 切分
         blocks = re.split(r"\n\s*\n", raw_text)
-
         for block in blocks:
             block = block.strip()
             if not block:
                 continue
-
             elems = self._parse_block(block)
             elements.extend(elems)
 
-        return DocumentModel(elements)
+        # ★ 3) 建立 model 並掛上 token_map
+        model = DocumentModel(elements)
+        model.latex_token_map = token_map
+
+        return model
 
     # =========================================================
     # 解析單一 block
@@ -175,68 +179,15 @@ class DocumentParser:
         if img_results:
             return img_results
 
-        # ----------- 4. Text + Inline LaTeX ----------- #
-        elements: List[BaseElement] = []
-
-        patterns = [
-            self._inline_paren_re,  # \( ... \) → display
-            self._inline_dollar_re,  # $ ... $   → inline
+        # ----------- 4. Text ----------- #
+        return [
+            TextElement(
+                text=block,
+                id=self._next_id(),
+                meta={"text_kind": "block"}
+            )
         ]
 
-        matches = []
-        for pat in patterns:
-            for m in pat.finditer(block):
-                matches.append((m.start(), m.end(), m.group(1), pat))
-
-        if not matches:
-            return [TextElement(text=block, id=self._next_id(), meta={"text_kind": "block"})]
-
-        matches.sort(key=lambda x: x[0])
-
-        last = 0
-        for start, end, latex_code, pat in matches:
-            # 前段文字
-            if start > last:
-                elements.append(
-                    TextElement(
-                        text=block[last:start],
-                        id=self._next_id(),
-                        meta={"text_kind": "inline"}
-                    )
-                )
-
-            # LaTeX 本體
-            if pat is self._inline_dollar_re:
-                # $...$ → inline
-                elements.append(
-                    LatexElement(
-                        latex=latex_code.strip(),
-                        id=self._next_id(),
-                        meta={"inline": True}
-                    )
-                )
-            else:
-                # \( ... \) → display
-                elements.append(
-                    LatexElement(
-                        latex=latex_code.strip(),
-                        id=self._next_id()
-                    )
-                )
-
-            last = end
-
-        # 剩餘文字
-        if last < len(block):
-            elements.append(
-                TextElement(
-                    text=block[last:],
-                    id=self._next_id(),
-                    meta={"text_kind": "inline"}
-                )
-            )
-
-        return elements
 
 
 
